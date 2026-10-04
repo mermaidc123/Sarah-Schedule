@@ -1,68 +1,68 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>家庭行程管理系統</title>
+  <title>Family Schedule Management</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS 庫 -->
+  <!-- SheetJS Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-6">
 
   <div class="max-w-7xl mx-auto space-y-6">
     
-    <!-- 頁首與按鈕區 -->
+    <!-- Header & Action Area -->
     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex items-center gap-4">
-        <!-- 動態當天日曆 Icon -->
+        <!-- Dynamic Calendar Icon -->
         <div class="w-14 h-14 rounded-xl bg-indigo-600 text-white flex flex-col items-center justify-center shadow-md overflow-hidden shrink-0">
           <span id="cal-month" class="bg-indigo-700 w-full text-center text-[10px] font-bold uppercase tracking-wider py-0.5">OCT</span>
           <span id="cal-day" class="text-xl font-extrabold leading-tight py-1">4</span>
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-slate-900">家庭行程管理系統</h1>
-          <p id="status-text" class="text-xs text-slate-500 mt-0.5">正在讀取行程資料...</p>
+          <h1 class="text-2xl font-bold text-slate-900">Family Schedule</h1>
+          <p id="status-text" class="text-xs text-slate-500 mt-0.5">Synced with GitHub Cloud</p>
         </div>
       </div>
 
-      <!-- 操作按鈕區 -->
+      <!-- Action Buttons -->
       <div class="flex flex-wrap items-center gap-2">
         <button onclick="loadLocalExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
-          🔄 重新整理行程
+          🔄 Refresh Schedule
         </button>
       </div>
     </div>
 
-    <!-- 檢視天數切換 -->
+    <!-- Filter Buttons -->
     <div class="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-slate-200 w-fit">
-      <button onclick="filterDays(10)" id="btn-10" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">未來 10 天</button>
-      <button onclick="filterDays(30)" id="btn-30" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">未來 30 天</button>
-      <button onclick="filterDays(90)" id="btn-90" class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700">未來 90 天</button>
-      <button onclick="filterDays(0)" id="btn-all" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">全部學期行程</button>
+      <button onclick="filterDays(10)" id="btn-10" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">Next 10 Days</button>
+      <button onclick="filterDays(30)" id="btn-30" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">Next 30 Days</button>
+      <button onclick="filterDays(90)" id="btn-90" class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700">Next 90 Days</button>
+      <button onclick="filterDays(0)" id="btn-all" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">All Semesters</button>
     </div>
 
-    <!-- 行程表格 -->
+    <!-- Schedule Table -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
-              <th class="px-4 py-3">日期 (Date)</th>
-              <th class="px-4 py-3">活動名稱 (Event)</th>
-              <th class="px-4 py-3">開始時間</th>
-              <th class="px-4 py-3">結束時間</th>
-              <th class="px-4 py-3">地點</th>
-              <th class="px-4 py-3">類別</th>
-              <th class="px-4 py-3">類型</th>
-              <th class="px-4 py-3">備註 (Details)</th>
+              <th class="px-4 py-3">Date</th>
+              <th class="px-4 py-3">Event</th>
+              <th class="px-4 py-3">Start Time</th>
+              <th class="px-4 py-3">End Time</th>
+              <th class="px-4 py-3">Location</th>
+              <th class="px-4 py-3">Category</th>
+              <th class="px-4 py-3">Type</th>
+              <th class="px-4 py-3">Details</th>
             </tr>
           </thead>
           <tbody id="schedule-tbody" class="divide-y divide-slate-100">
             <tr>
               <td colspan="8" class="px-6 py-12 text-center text-slate-400 text-sm">
-                ⏳ 正在載入行程資料...
+                ⏳ Loading schedule data...
               </td>
             </tr>
           </tbody>
@@ -86,25 +86,24 @@
       loadLocalExcel();
     });
 
-    // 直接讀取同一個 GitHub 夾子裡的 schedule.xlsx 檔案
     async function loadLocalExcel() {
-      document.getElementById('status-text').textContent = '⏳ 正在讀取行程檔案...';
+      document.getElementById('status-text').textContent = '⏳ Loading Schedule.xlsx...';
       
       try {
-        const response = await fetch('schedule.xlsx');
-        if (!response.ok) throw new Error('找不到 schedule.xlsx 檔案');
+        const response = await fetch('Schedule.xlsx');
+        if (!response.ok) throw new Error('Schedule.xlsx not found');
         
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
         
         processExcelWorkbook(workbook);
-        document.getElementById('status-text').textContent = '✅ 行程已成功同步更新！';
+        document.getElementById('status-text').textContent = '✅ Schedule successfully updated!';
       } catch (error) {
         console.error(error);
-        document.getElementById('status-text').textContent = '⚠️ 找不到 Excel 檔案';
+        document.getElementById('status-text').textContent = '⚠️ Load failed';
         document.getElementById('schedule-tbody').innerHTML = `
           <tr><td colspan="8" class="px-6 py-12 text-center text-red-500 text-sm">
-            請確認您的 GitHub 專案中同時放了 <b>index.html</b> 與 <b>schedule.xlsx</b> 兩個檔案！
+            Unable to load file. Please make sure <b>Schedule.xlsx</b> is in your GitHub repository.
           </td></tr>`;
       }
     }
@@ -288,7 +287,7 @@
       tbody.innerHTML = '';
 
       if (globalAllEvents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-slate-400">目前沒有行程資料。</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-slate-400">No schedule data available.</td></tr>`;
         return;
       }
 
@@ -320,8 +319,8 @@
         const isConflict = conflictIndices.has(index);
 
         const textStyle = isConflict ? "text-red-600 font-bold" : "text-slate-800";
-        const conflictBadge = isConflict ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800 ml-2">⚠️ 衝突</span>` : '';
-        const holidayBadge = isHoliday ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-200 text-amber-900 ml-2">🏖️ 學校假期</span>` : '';
+        const conflictBadge = isConflict ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800 ml-2">⚠️ Conflict</span>` : '';
+        const holidayBadge = isHoliday ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-200 text-amber-900 ml-2">🏖️ School Holiday</span>` : '';
 
         const tr = document.createElement('tr');
         const rowBg = isHoliday ? "bg-amber-100/70 hover:bg-amber-100" : "hover:bg-slate-50";
