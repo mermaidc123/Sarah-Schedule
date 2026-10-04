@@ -23,7 +23,7 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-slate-900">家庭行程管理系統</h1>
-          <p id="status-text" class="text-xs text-slate-500 mt-0.5">已完美還原 Excel 序列號轉換，日期與假期精準對齊</p>
+          <p id="status-text" class="text-xs text-slate-500 mt-0.5">已連線至 OneDrive 雲端，自動同步最新行程</p>
         </div>
       </div>
 
@@ -34,10 +34,9 @@
           ✏️ 線上修改/新增行程 (OneDrive)
         </a>
 
-        <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
-          <span>📁 更新 Excel 檔案</span>
-          <input type="file" id="excel-file" accept=".xlsx, .xls" class="hidden">
-        </label>
+        <button onclick="loadOneDriveExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
+          🔄 重新整理雲端行程
+        </button>
       </div>
     </div>
 
@@ -68,7 +67,7 @@
           <tbody id="schedule-tbody" class="divide-y divide-slate-100">
             <tr>
               <td colspan="8" class="px-6 py-12 text-center text-slate-400 text-sm">
-                ⏳ 正在載入行程資料...
+                ⏳ 正在從 OneDrive 自動下載並載入行程...
               </td>
             </tr>
           </tbody>
@@ -89,67 +88,51 @@
     let globalHolidays = new Set(); 
     let currentFilterDays = 90;
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedData = localStorage.getItem('cached_excel_data');
-      if (savedData) {
-        try {
-          const binaryString = atob(savedData);
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const workbook = XLSX.read(bytes, { type: 'array' });
-          processExcelWorkbook(workbook);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+    // 🎯 您的 OneDrive 檔案分享連結
+    const ONEDRIVE_SHARE_URL = 'https://1drv.ms/x/c/4fe3faf97cd53db0/IQDgElVo5mRgRJcmdg3BbDlnAZ2a4fXAhIntqD2AtXTUd4I?e=QQmIPd';
 
-      if (globalAllEvents.length === 0) {
+    window.addEventListener('DOMContentLoaded', () => {
+      loadOneDriveExcel();
+    });
+
+    // 自動從 OneDrive 抓取 Excel
+    async function loadOneDriveExcel() {
+      document.getElementById('status-text').textContent = '⏳ 正在連線 OneDrive 同步最新資料...';
+      
+      try {
+        // 將 OneDrive 分享連結轉換為可直接下載的格式
+        let downloadUrl = ONEDRIVE_SHARE_URL;
+        if (downloadUrl.includes('1drv.ms') || downloadUrl.includes('sharepoint.com')) {
+          // 使用通用代理或直接轉換參數以繞過 CORS 限制
+          downloadUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ONEDRIVE_SHARE_URL);
+        }
+
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error('無法連線至 OneDrive 下載檔案');
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+        
+        processExcelWorkbook(workbook);
+        document.getElementById('status-text').textContent = '✅ 已成功從 OneDrive 同步最新行程！';
+      } catch (error) {
+        console.error(error);
+        document.getElementById('status-text').textContent = '⚠️ 自動同步失敗，請確認 OneDrive 連結權限。';
         document.getElementById('schedule-tbody').innerHTML = `
-          <tr><td colspan="8" class="px-6 py-12 text-center text-slate-500 text-sm">
-            請點擊右上角 <span class="font-bold text-indigo-600">「📁 更新 Excel 檔案」</span> 上傳一次您的 .xlsx 檔案！
+          <tr><td colspan="8" class="px-6 py-12 text-center text-red-500 text-sm">
+            無法自動讀取 OneDrive 檔案（可能是瀏覽器安全限制 CORS）。建議您將專案發布至 Vercel 或 Netlify，即可完美自動同步！
           </td></tr>`;
       }
-    });
+    }
 
-    document.getElementById('excel-file').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const arrayBuffer = e.target.result;
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        localStorage.setItem('cached_excel_data', btoa(binary));
-
-        const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-        processExcelWorkbook(workbook);
-        document.getElementById('status-text').textContent = `✅ 成功更新檔案：${file.name}`;
-      };
-      reader.readAsArrayBuffer(file);
-    });
-
-    // 🎯 核心：安全將 Excel 日期（序列號或文字）轉成乾淨的本地 Date 物件，杜絕時區誤差
     function parseExcelDate(val) {
       if (!val) return null;
-      
-      // 如果是 Excel 序列號（例如 46263）
       if (typeof val === 'number') {
-        // Excel 基準日 1899-12-30（考慮 1900 閏年錯誤）
         let utc_days = Math.floor(val - 25569);
         let utc_value = utc_days * 86400;
         let dateInfo = new Date(utc_value * 1000);
         return new Date(dateInfo.getUTCFullYear(), dateInfo.getUTCMonth(), dateInfo.getUTCDate());
       }
-
-      // 如果是字串格式（例如 "October 5, 2026"）
       let str = String(val).trim();
       const monthMap = {
         "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
@@ -157,7 +140,6 @@
         "jan": 0, "feb": 1, "mar": 2, "apr": 3, "may": 4, "jun": 5,
         "jul": 6, "aug": 7, "sep": 8, "oct": 9, "nov": 10, "dec": 11
       };
-
       let lowerStr = str.toLowerCase();
       for (let mName in monthMap) {
         if (lowerStr.includes(mName)) {
@@ -173,7 +155,6 @@
           }
         }
       }
-
       let d = new Date(str);
       if (!isNaN(d.getTime())) {
         return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -196,7 +177,6 @@
     }
 
     function processExcelWorkbook(workbook) {
-      // 1. 讀取學校假期清單
       globalHolidays.clear();
       if (workbook.Sheets['School Holiday']) {
         const hSheet = XLSX.utils.sheet_to_json(workbook.Sheets['School Holiday']);
@@ -214,7 +194,6 @@
 
       let rawEvents = [];
 
-      // 2. 讀取 Unique Event
       if (workbook.Sheets['Unique Event']) {
         const uSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Unique Event']);
         uSheet.forEach(row => {
@@ -235,12 +214,11 @@
         });
       }
 
-      // 3. 讀取 Recurring Event
       if (workbook.Sheets['Recurring Event']) {
         const rSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Recurring Event']);
         const dayMap = { "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6 };
 
-        let startDate = new Date(2026, 9, 4); // 2026-10-04
+        let startDate = new Date(2026, 9, 4);
         startDate.setHours(0,0,0,0);
         let endDate = new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000);
 
@@ -268,7 +246,6 @@
         });
       }
 
-      // 4. 排序
       rawEvents.sort((a, b) => {
         if (a.dateObj.getTime() !== b.dateObj.getTime()) return a.dateObj.getTime() - b.dateObj.getTime();
         return parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
