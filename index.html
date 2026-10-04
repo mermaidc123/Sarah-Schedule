@@ -23,19 +23,14 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-slate-900">家庭行程管理系統</h1>
-          <p id="status-text" class="text-xs text-slate-500 mt-0.5">已連線至 OneDrive 雲端，自動同步最新行程</p>
+          <p id="status-text" class="text-xs text-slate-500 mt-0.5">正在讀取行程資料...</p>
         </div>
       </div>
 
       <!-- 操作按鈕區 -->
       <div class="flex flex-wrap items-center gap-2">
-        <a href="https://onedrive.live.com/:x:/g/personal/4FE3FAF97CD53DB0/IQDgElVo5mRgRJcmdg3BbDlnAcVwFo8_gvCv_HCflp3kllA?resid=4FE3FAF97CD53DB0!s685512e064e644609726760dc16c3967&ithint=file%2Cxlsx&e=cH0Kx7&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy80ZmUzZmFmOTdjZDUzZGIwL0lRRGdFbFZvNW1SZ1JKY21kZzNCYkRsbkFjVndGbzhfZ3ZDdl9IQ2ZscDNrbGxBP2U9Y0gwS3g3" target="_blank" 
-           class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
-          ✏️ 線上修改/新增行程 (OneDrive)
-        </a>
-
-        <button onclick="loadOneDriveExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
-          🔄 重新整理雲端行程
+        <button onclick="loadLocalExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
+          🔄 重新整理行程
         </button>
       </div>
     </div>
@@ -67,7 +62,7 @@
           <tbody id="schedule-tbody" class="divide-y divide-slate-100">
             <tr>
               <td colspan="8" class="px-6 py-12 text-center text-slate-400 text-sm">
-                ⏳ 正在從 OneDrive 自動下載並載入行程...
+                ⏳ 正在載入行程資料...
               </td>
             </tr>
           </tbody>
@@ -87,38 +82,29 @@
     let globalHolidays = new Set(); 
     let currentFilterDays = 90;
 
-    // 🎯 您的 OneDrive 直連網址
-    const ONEDRIVE_SHARE_URL = 'https://onedrive.live.com/:x:/g/personal/4FE3FAF97CD53DB0/IQDgElVo5mRgRJcmdg3BbDlnAcVwFo8_gvCv_HCflp3kllA?resid=4FE3FAF97CD53DB0!s685512e064e644609726760dc16c3967&ithint=file%2Cxlsx&e=cH0Kx7&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy80ZmUzZmFmOTdjZDUzZGIwL0lRRGdFbFZvNW1SZ1JKY21kZzNCYkRsbkFjVndGbzhfZ3ZDdl9IQ2ZscDNrbGxBP2U9Y0gwS3g3';
-
     window.addEventListener('DOMContentLoaded', () => {
-      loadOneDriveExcel();
+      loadLocalExcel();
     });
 
-    async function loadOneDriveExcel() {
-      document.getElementById('status-text').textContent = '⏳ 正在透過直連通道下載 OneDrive 行程...';
+    // 直接讀取同一個 GitHub 夾子裡的 schedule.xlsx 檔案
+    async function loadLocalExcel() {
+      document.getElementById('status-text').textContent = '⏳ 正在讀取行程檔案...';
       
       try {
-        let directUrl = ONEDRIVE_SHARE_URL;
-        if (!directUrl.includes('download=1')) {
-          directUrl += (directUrl.includes('?') ? '&' : '?') + 'download=1';
-        }
-        
-        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl);
-
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error('連線失敗');
+        const response = await fetch('schedule.xlsx');
+        if (!response.ok) throw new Error('找不到 schedule.xlsx 檔案');
         
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
         
         processExcelWorkbook(workbook);
-        document.getElementById('status-text').textContent = '✅ 已成功從 OneDrive 自動同步！';
+        document.getElementById('status-text').textContent = '✅ 行程已成功同步更新！';
       } catch (error) {
         console.error(error);
-        document.getElementById('status-text').textContent = '⚠️ 讀取中，請點擊右上方按鈕重試';
+        document.getElementById('status-text').textContent = '⚠️ 找不到 Excel 檔案';
         document.getElementById('schedule-tbody').innerHTML = `
           <tr><td colspan="8" class="px-6 py-12 text-center text-red-500 text-sm">
-            無法讀取檔案。請確認您的 OneDrive 檔案已設為「知道連結的任何人都可以檢視」。
+            請確認您的 GitHub 專案中同時放了 <b>index.html</b> 與 <b>schedule.xlsx</b> 兩個檔案！
           </td></tr>`;
       }
     }
