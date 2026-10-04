@@ -29,7 +29,7 @@
 
       <!-- 操作按鈕區 -->
       <div class="flex flex-wrap items-center gap-2">
-        <a href="https://1drv.ms/x/c/4fe3faf97cd53db0/IQDgElVo5mRgRJcmdg3BbDlnAZ2a4fXAhIntqD2AtXTUd4I?e=QQmIPd" target="_blank" 
+        <a href="https://onedrive.live.com/:x:/g/personal/4FE3FAF97CD53DB0/IQDgElVo5mRgRJcmdg3BbDlnAcVwFo8_gvCv_HCflp3kllA?resid=4FE3FAF97CD53DB0!s685512e064e644609726760dc16c3967&ithint=file%2Cxlsx&e=cH0Kx7&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy80ZmUzZmFmOTdjZDUzZGIwL0lRRGdFbFZvNW1SZ1JKY21kZzNCYkRsbkFjVndGbzhfZ3ZDdl9IQ2ZscDNrbGxBP2U9Y0gwS3g3" target="_blank" 
            class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
           ✏️ 線上修改/新增行程 (OneDrive)
         </a>
@@ -78,7 +78,6 @@
   </div>
 
   <script>
-    // 即時更新當天日曆 Icon
     const now = new Date();
     const monthsNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     document.getElementById('cal-month').textContent = monthsNames[now.getMonth()];
@@ -88,39 +87,38 @@
     let globalHolidays = new Set(); 
     let currentFilterDays = 90;
 
-    // 🎯 您的 OneDrive 檔案分享連結
-    const ONEDRIVE_SHARE_URL = 'https://1drv.ms/x/c/4fe3faf97cd53db0/IQDgElVo5mRgRJcmdg3BbDlnAZ2a4fXAhIntqD2AtXTUd4I?e=QQmIPd';
+    // 🎯 您的 OneDrive 直連網址
+    const ONEDRIVE_SHARE_URL = 'https://onedrive.live.com/:x:/g/personal/4FE3FAF97CD53DB0/IQDgElVo5mRgRJcmdg3BbDlnAcVwFo8_gvCv_HCflp3kllA?resid=4FE3FAF97CD53DB0!s685512e064e644609726760dc16c3967&ithint=file%2Cxlsx&e=cH0Kx7&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy80ZmUzZmFmOTdjZDUzZGIwL0lRRGdFbFZvNW1SZ1JKY21kZzNCYkRsbkFjVndGbzhfZ3ZDdl9IQ2ZscDNrbGxBP2U9Y0gwS3g3';
 
     window.addEventListener('DOMContentLoaded', () => {
       loadOneDriveExcel();
     });
 
-    // 自動從 OneDrive 抓取 Excel
     async function loadOneDriveExcel() {
-      document.getElementById('status-text').textContent = '⏳ 正在連線 OneDrive 同步最新資料...';
+      document.getElementById('status-text').textContent = '⏳ 正在透過直連通道下載 OneDrive 行程...';
       
       try {
-        // 將 OneDrive 分享連結轉換為可直接下載的格式
-        let downloadUrl = ONEDRIVE_SHARE_URL;
-        if (downloadUrl.includes('1drv.ms') || downloadUrl.includes('sharepoint.com')) {
-          // 使用通用代理或直接轉換參數以繞過 CORS 限制
-          downloadUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ONEDRIVE_SHARE_URL);
+        let directUrl = ONEDRIVE_SHARE_URL;
+        if (!directUrl.includes('download=1')) {
+          directUrl += (directUrl.includes('?') ? '&' : '?') + 'download=1';
         }
+        
+        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl);
 
-        const response = await fetch(downloadUrl);
-        if (!response.ok) throw new Error('無法連線至 OneDrive 下載檔案');
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error('連線失敗');
         
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
         
         processExcelWorkbook(workbook);
-        document.getElementById('status-text').textContent = '✅ 已成功從 OneDrive 同步最新行程！';
+        document.getElementById('status-text').textContent = '✅ 已成功從 OneDrive 自動同步！';
       } catch (error) {
         console.error(error);
-        document.getElementById('status-text').textContent = '⚠️ 自動同步失敗，請確認 OneDrive 連結權限。';
+        document.getElementById('status-text').textContent = '⚠️ 讀取中，請點擊右上方按鈕重試';
         document.getElementById('schedule-tbody').innerHTML = `
           <tr><td colspan="8" class="px-6 py-12 text-center text-red-500 text-sm">
-            無法自動讀取 OneDrive 檔案（可能是瀏覽器安全限制 CORS）。建議您將專案發布至 Vercel 或 Netlify，即可完美自動同步！
+            無法讀取檔案。請確認您的 OneDrive 檔案已設為「知道連結的任何人都可以檢視」。
           </td></tr>`;
       }
     }
