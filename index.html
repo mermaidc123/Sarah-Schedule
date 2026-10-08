@@ -8,18 +8,25 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SheetJS Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    @media print {
+      body { background-color: white !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+      .print-shadow-none { box-shadow: none !important; border: none !important; }
+    }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-6">
 
   <div class="max-w-7xl mx-auto space-y-6">
     
     <!-- Header & Action Area -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 print-shadow-none">
       <div class="flex items-center gap-4">
         <!-- Dynamic Calendar Icon -->
         <div class="w-14 h-14 rounded-xl bg-indigo-600 text-white flex flex-col items-center justify-center shadow-md overflow-hidden shrink-0">
-          <span id="cal-month" class="bg-indigo-700 w-full text-center text-[10px] font-bold uppercase tracking-wider py-0.5">OCT</span>
-          <span id="cal-day" class="text-xl font-extrabold leading-tight py-1">4</span>
+          <span id="cal-month" class="bg-indigo-700 w-full text-center text-[10px] font-bold uppercase tracking-wider py-0.5">--</span>
+          <span id="cal-day" class="text-xl font-extrabold leading-tight py-1">--</span>
         </div>
         <div>
           <h1 class="text-2xl font-bold text-slate-900">Family Schedule</h1>
@@ -28,23 +35,26 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 no-print">
         <button onclick="loadLocalExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
           🔄 Refresh Schedule
+        </button>
+        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-xs flex items-center gap-1.5">
+          🖨️ Print Schedule
         </button>
       </div>
     </div>
 
-    <!-- Filter Buttons -->
-    <div class="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-slate-200 w-fit">
-      <button onclick="filterDays(10)" id="btn-10" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">Next 10 Days</button>
-      <button onclick="filterDays(30)" id="btn-30" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">Next 30 Days</button>
-      <button onclick="filterDays(90)" id="btn-90" class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700">Next 90 Days</button>
-      <button onclick="filterDays(0)" id="btn-all" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100">All Semesters</button>
+    <!-- Filter Buttons & Tabs -->
+    <div class="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-slate-200 w-fit no-print">
+      <button onclick="filterDays(10)" id="btn-10" class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-slate-600 hover:bg-slate-100">Next 10 Days</button>
+      <button onclick="filterDays(30)" id="btn-30" class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-slate-600 hover:bg-slate-100">Next 30 Days</button>
+      <button onclick="filterDays(90)" id="btn-90" class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-indigo-600 text-white">Next 90 Days</button>
+      <button onclick="filterDays(0)" id="btn-all" class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-slate-600 hover:bg-slate-100">All Semesters</button>
     </div>
 
     <!-- Schedule Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-shadow-none">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -73,6 +83,7 @@
   </div>
 
   <script>
+    // Real-time system date setup
     const now = new Date();
     const monthsNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     document.getElementById('cal-month').textContent = monthsNames[now.getMonth()];
@@ -87,11 +98,11 @@
     });
 
     async function loadLocalExcel() {
-      document.getElementById('status-text').textContent = '⏳ Loading Schedule.xlsx...';
+      document.getElementById('status-text').textContent = '⏳ Loading schedule.xlsx...';
       
       try {
-        const response = await fetch('Schedule.xlsx');
-        if (!response.ok) throw new Error('Schedule.xlsx not found');
+        const response = await fetch('schedule.xlsx');
+        if (!response.ok) throw new Error('schedule.xlsx not found');
         
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
@@ -103,246 +114,4 @@
         document.getElementById('status-text').textContent = '⚠️ Load failed';
         document.getElementById('schedule-tbody').innerHTML = `
           <tr><td colspan="8" class="px-6 py-12 text-center text-red-500 text-sm">
-            Unable to load file. Please make sure <b>Schedule.xlsx</b> is in your GitHub repository.
-          </td></tr>`;
-      }
-    }
-
-    function parseExcelDate(val) {
-      if (!val) return null;
-      if (typeof val === 'number') {
-        let utc_days = Math.floor(val - 25569);
-        let utc_value = utc_days * 86400;
-        let dateInfo = new Date(utc_value * 1000);
-        return new Date(dateInfo.getUTCFullYear(), dateInfo.getUTCMonth(), dateInfo.getUTCDate());
-      }
-      let str = String(val).trim();
-      const monthMap = {
-        "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
-        "july": 6, "august": 7, "september": 8, "october": 9, "november": 10, "december": 11,
-        "jan": 0, "feb": 1, "mar": 2, "apr": 3, "may": 4, "jun": 5,
-        "jul": 6, "aug": 7, "sep": 8, "oct": 9, "nov": 10, "dec": 11
-      };
-      let lowerStr = str.toLowerCase();
-      for (let mName in monthMap) {
-        if (lowerStr.includes(mName)) {
-          let numbers = str.match(/\d+/g);
-          if (numbers && numbers.length >= 2) {
-            let day = parseInt(numbers[0], 10);
-            let year = parseInt(numbers[numbers.length - 1], 10);
-            if (day > 31) { 
-              year = parseInt(numbers[0], 10);
-              day = parseInt(numbers[1], 10);
-            }
-            return new Date(year, monthMap[mName], day);
-          }
-        }
-      }
-      let d = new Date(str);
-      if (!isNaN(d.getTime())) {
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      }
-      return null;
-    }
-
-    function formatTimeString(timeVal) {
-      if (timeVal === undefined || timeVal === null || timeVal === '') return '';
-      if (typeof timeVal === 'number') {
-        let totalMinutes = Math.round(timeVal * 24 * 60);
-        let hours = Math.floor(totalMinutes / 60) % 24;
-        let minutes = totalMinutes % 60;
-        let ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        return `${hours}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
-      }
-      return String(timeVal).trim();
-    }
-
-    function processExcelWorkbook(workbook) {
-      globalHolidays.clear();
-      if (workbook.Sheets['School Holiday']) {
-        const hSheet = XLSX.utils.sheet_to_json(workbook.Sheets['School Holiday']);
-        hSheet.forEach(row => {
-          let hDateVal = row['Date'] || row['School Holiday Date'] || row[Object.keys(row)[1]];
-          if (hDateVal !== undefined) {
-            let hd = parseExcelDate(hDateVal);
-            if (hd) {
-              let key = `${hd.getFullYear()}-${hd.getMonth()}-${hd.getDate()}`;
-              globalHolidays.add(key);
-            }
-          }
-        });
-      }
-
-      let rawEvents = [];
-
-      if (workbook.Sheets['Unique Event']) {
-        const uSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Unique Event']);
-        uSheet.forEach(row => {
-          if (!row['Event'] || row['Date'] === undefined) return;
-          let d = parseExcelDate(row['Date']);
-          if (!d) return;
-
-          rawEvents.push({
-            event: String(row['Event']),
-            dateObj: d,
-            startTime: formatTimeString(row['Start Time']),
-            endTime: formatTimeString(row['End Time']),
-            location: row['Location'] ? String(row['Location']) : '',
-            category: row['Category'] ? String(row['Category']) : '',
-            eventType: row['Event Type'] ? String(row['Event Type']) : '',
-            details: row['Details'] ? String(row['Details']) : ''
-          });
-        });
-      }
-
-      if (workbook.Sheets['Recurring Event']) {
-        const rSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Recurring Event']);
-        const dayMap = { "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6 };
-
-        let startDate = new Date(2026, 9, 4);
-        startDate.setHours(0,0,0,0);
-        let endDate = new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000);
-
-        rSheet.forEach(row => {
-          if (!row['Event'] || !row['Recurs On']) return;
-          const targetDay = dayMap[String(row['Recurs On']).trim()];
-          if (targetDay === undefined) return;
-
-          let curr = new Date(startDate.getTime());
-          while (curr <= endDate) {
-            if (curr.getDay() === targetDay) {
-              rawEvents.push({
-                event: String(row['Event']),
-                dateObj: new Date(curr.getTime()),
-                startTime: formatTimeString(row['Start Time']),
-                endTime: formatTimeString(row['End Time']),
-                location: row['Location'] ? String(row['Location']) : '',
-                category: row['Category'] ? String(row['Category']) : '',
-                eventType: row['Event Type'] ? String(row['Event Type']) : '',
-                details: row['Details'] ? String(row['Details']) : ''
-              });
-            }
-            curr.setDate(curr.getDate() + 1);
-          }
-        });
-      }
-
-      rawEvents.sort((a, b) => {
-        if (a.dateObj.getTime() !== b.dateObj.getTime()) return a.dateObj.getTime() - b.dateObj.getTime();
-        return parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
-      });
-
-      globalAllEvents = rawEvents;
-      renderSchedule();
-    }
-
-    function parseTimeToMinutes(timeStr) {
-      if (!timeStr) return -1;
-      let time = String(timeStr).trim().toUpperCase();
-      let isPM = time.includes('PM');
-      let isAM = time.includes('AM');
-      time = time.replace('AM', '').replace('PM', '').trim();
-      let parts = time.split(':');
-      if (parts.length < 2) return -1;
-      let hours = parseInt(parts[0], 10);
-      let minutes = parseInt(parts[1], 10);
-      if (isPM && hours < 12) hours += 12;
-      if (isAM && hours === 12) hours = 0;
-      return hours * 60 + minutes;
-    }
-
-    function checkConflicts(events) {
-      const conflictSet = new Set();
-      for (let i = 0; i < events.length; i++) {
-        for (let j = i + 1; j < events.length; j++) {
-          const e1 = events[i];
-          const e2 = events[j];
-          if (e1.dateObj.getTime() === e2.dateObj.getTime()) {
-            const start1 = parseTimeToMinutes(e1.startTime);
-            const end1 = parseTimeToMinutes(e1.endTime);
-            const start2 = parseTimeToMinutes(e2.startTime);
-            const end2 = parseTimeToMinutes(e2.endTime);
-
-            if (start1 >= 0 && end1 >= 0 && start2 >= 0 && end2 >= 0) {
-              if (start1 < end2 && start2 < end1) {
-                conflictSet.add(i);
-                conflictSet.add(j);
-              }
-            }
-          }
-        }
-      }
-      return conflictSet;
-    }
-
-    function filterDays(days) {
-      currentFilterDays = days;
-      renderSchedule();
-    }
-
-    function renderSchedule() {
-      const tbody = document.getElementById('schedule-tbody');
-      tbody.innerHTML = '';
-
-      if (globalAllEvents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-slate-400">No schedule data available.</td></tr>`;
-        return;
-      }
-
-      const today = new Date(2026, 9, 4);
-      today.setHours(0,0,0,0);
-
-      let filtered = globalAllEvents.filter(e => e.dateObj >= today);
-
-      if (currentFilterDays > 0) {
-        const limitDate = new Date(today.getTime() + currentFilterDays * 24 * 60 * 60 * 1000);
-        filtered = filtered.filter(e => e.dateObj <= limitDate);
-      }
-
-      const conflictIndices = checkConflicts(filtered);
-
-      const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      let prevDateKey = "";
-
-      filtered.forEach((item, index) => {
-        const dt = item.dateObj;
-        const dateKey = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
-        const dateStr = `${daysOfWeek[dt.getDay()]}, ${months[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
-
-        const shownDate = (dateKey === prevDateKey) ? "" : dateStr;
-        prevDateKey = dateKey;
-
-        const isHoliday = globalHolidays.has(dateKey);
-        const isConflict = conflictIndices.has(index);
-
-        const textStyle = isConflict ? "text-red-600 font-bold" : "text-slate-800";
-        const conflictBadge = isConflict ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800 ml-2">⚠️ Conflict</span>` : '';
-        const holidayBadge = isHoliday ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-200 text-amber-900 ml-2">🏖️ School Holiday</span>` : '';
-
-        const tr = document.createElement('tr');
-        const rowBg = isHoliday ? "bg-amber-100/70 hover:bg-amber-100" : "hover:bg-slate-50";
-        tr.className = `${rowBg} transition-colors border-b border-slate-100`;
-
-        tr.innerHTML = `
-          <td class="px-4 py-3 text-sm font-semibold text-slate-700">${shownDate}</td>
-          <td class="px-4 py-3 text-sm ${textStyle}">${item.event}${conflictBadge} ${holidayBadge}</td>
-          <td class="px-4 py-3 text-sm ${textStyle}">${item.startTime}</td>
-          <td class="px-4 py-3 text-sm ${textStyle}">${item.endTime}</td>
-          <td class="px-4 py-3 text-sm text-slate-600">${item.location}</td>
-          <td class="px-4 py-3 text-sm">
-            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${item.category === 'School' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}">
-              ${item.category}
-            </span>
-          </td>
-          <td class="px-4 py-3 text-sm text-slate-600">${item.eventType}</td>
-          <td class="px-4 py-3 text-sm text-slate-500">${item.details}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-  </script>
-</body>
-</html>
+            Unable to load file. Please make sure <b>schedule.xlsx</b> is in your GitHub repository
